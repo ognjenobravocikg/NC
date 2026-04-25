@@ -177,26 +177,12 @@ def get_dedup_key(row):
 
 
 def parse_events(filepath):
-    """
-    Main parser.
-    Reads file once.
-    Cleans rows.
-    Splits into event buckets.
-    Prints report.
-    """
 
-    seen = set()
-
-    registrations = []
-    session_pings = []
-    match_starts = []
-    match_finishes = []
+    seen = {}
 
     raw_rows = 0
     malformed_rows = 0
     invalid_rows = 0
-    duplicate_rows = 0
-    clean_rows = 0
 
     with open(filepath, "r", encoding="utf-8") as file:
 
@@ -215,29 +201,40 @@ def parse_events(filepath):
                 invalid_rows += 1
                 continue
 
-            key = get_dedup_key(row)
+            key = (row["event_type"], row["id"])
 
-            if key in seen:
-                duplicate_rows += 1
-                continue
+            if key not in seen:
+                seen[key] = row
 
-            seen.add(key)
+            else:
+                old_row = seen[key]
 
-            event_type = row["event_type"]
+                if row["timestamp"] < old_row["timestamp"]:
+                    seen[key] = row
 
-            if event_type == "registration":
-                registrations.append(row)
+    registrations = []
+    session_pings = []
+    match_starts = []
+    match_finishes = []
 
-            elif event_type == "session_ping":
-                session_pings.append(row)
+    for row in seen.values():
 
-            elif event_type == "match_start":
-                match_starts.append(row)
+        event_type = row["event_type"]
 
-            elif event_type == "match_finish":
-                match_finishes.append(row)
+        if event_type == "registration":
+            registrations.append(row)
 
-            clean_rows += 1
+        elif event_type == "session_ping":
+            session_pings.append(row)
+
+        elif event_type == "match_start":
+            match_starts.append(row)
+
+        elif event_type == "match_finish":
+            match_finishes.append(row)
+
+    clean_rows = len(seen)
+    duplicate_rows = raw_rows - malformed_rows - invalid_rows - clean_rows
 
     print("\n========== PARSER REPORT ==========")
     print("Raw rows read:        ", raw_rows)
