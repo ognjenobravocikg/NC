@@ -1,7 +1,7 @@
 import json
 
-from database import SessionLocal
-from models import User, SessionPing, MatchEvent, Map
+from app.database import SessionLocal
+from app.models import User, SessionPing, MatchEvent, Map
 
 def load_users(registrations, db):
     for row in registrations:

@@ -1,8 +1,8 @@
-from database import engine
-from models import Base
-from parser import parse_events
-from loader import load_all
-from stats import get_user_stats, get_map_stats
+from app.database import engine
+from app.models import Base
+from app.parser import parse_events
+from app.loader import load_all
+from app.stats import get_user_stats, get_map_stats
 
 
 def main():

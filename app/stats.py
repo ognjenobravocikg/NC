@@ -1,6 +1,6 @@
 from sqlalchemy import func
-from database import SessionLocal
-from models import User, MatchEvent, SessionPing, Map
+from app.database import SessionLocal
+from app.models import User, MatchEvent, SessionPing, Map
 from datetime import datetime
 from collections import defaultdict
 

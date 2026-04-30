@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query
 from typing import List, Optional
-from stats import get_user_stats, get_map_stats
+from app.stats import get_user_stats, get_map_stats
 
 app = FastAPI(
     title="Golf Rival Data API",
