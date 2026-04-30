@@ -26,14 +26,12 @@ class MatchEvent(Base):
     __tablename__ = "match_events"
 
     id = Column(Integer, primary_key=True)
-
-
-    user_id = Column(String, nullable=False) 
-    opponent_id = Column(String, nullable = False)
-    map_id = Column(String, nullable = False)
-    timestamp = Column(Integer, nullable = False)
-    outcome = Column(Float, nullable = False)
-
+    event_type = Column(String, nullable=False)
+    user_id = Column(String, nullable=False)
+    opponent_id = Column(String, nullable=False)
+    map_id = Column(String, nullable=False)
+    timestamp = Column(Integer, nullable=False)
+    outcome = Column(Float, nullable=True)
 
 class Map(Base):
     __tablename__ = "maps"

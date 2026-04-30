@@ -3,12 +3,7 @@ import json
 from database import SessionLocal
 from models import User, SessionPing, MatchEvent, Map
 
-
 def load_users(registrations, db):
-    """
-    Insert registration rows into users table.
-    """
-
     for row in registrations:
         data = row["event_data"]
 
@@ -24,10 +19,6 @@ def load_users(registrations, db):
 
 
 def load_session_pings(session_pings, db):
-    """
-    Insert session ping rows.
-    """
-
     for row in session_pings:
         data = row["event_data"]
 
@@ -43,31 +34,24 @@ def load_session_pings(session_pings, db):
 
 
 def load_match_events(match_rows, db):
-    """
-    Insert match_start and match_finish rows.
-    """
-
     for row in match_rows:
-
-        if row["event_type"] != "match_finish":
-            continue
 
         data = row["event_data"]
 
         match = MatchEvent(
             id=row["id"],
+            event_type=row["event_type"],
             user_id=row["user_id"],
             opponent_id=data["opponent_id"],
             map_id=data["map_id"],
             timestamp=row["timestamp"],
-            outcome=data.get("outcome")
+            outcome=data.get("outcome")   # !!! None value if the match_start event, so we can later use it in stats.py to figure out the match type. !!!
         )
 
         db.merge(match)
 
 
 def load_maps(filepath, db):
-
     with open(filepath, "r", encoding="utf-8") as file:
 
         for line in file:
