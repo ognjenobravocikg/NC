@@ -23,9 +23,7 @@ def user_stats(
         data = [u for u in data if u["country"] in countries]
 
     if oss:
-        # NOTE: you didn’t store OS per user separately,
-        # so skip or extend model later if needed
-        pass
+        data = [u for u in data if u["registration_os"] in oss]
 
     return data
 
