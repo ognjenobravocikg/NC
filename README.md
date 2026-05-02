@@ -1,15 +1,15 @@
-# Nordeus Data Engineering Challenge
+# Data Engineering Challenge
 
 **Author:** Ognjen Obradović — ognjenobradovickg@gmail.com
 
-Challenge provided by Nordeus. The dataset and full challenge description can be found at:
+Challenge provided by NS. The dataset and full challenge description can be found at:
 [nordeus.com/nordeus-challenge/data-engineering](https://nordeus.com/nordeus-challenge/data-engineering/)
 
 ---
 
 ## Overview
 
-This project implements a full data engineering pipeline on top of raw game event data from _Golf Rival_. It covers ingestion and parsing of raw `.jsonl` event logs, structured storage in a SQLite database, statistical computation over match and session data, and exposure of results through a REST API with a lightweight frontend.
+This project implements a full data engineering pipeline on top of raw game event data from. It covers ingestion and parsing of raw `.jsonl` event logs, structured storage in a SQLite database, statistical computation over match and session data, and exposure of results through a REST API with a lightweight frontend.
 
 ---
 
