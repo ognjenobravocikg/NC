@@ -5,11 +5,9 @@
 Challenge provided by NS. The dataset and full challenge description can be found at:
 [nordeus.com/nordeus-challenge/data-engineering](https://nordeus.com/nordeus-challenge/data-engineering/)
 
----
+## A Brief Overview
 
-## Overview
-
-This project implements a full data engineering pipeline on top of raw game event data from. It covers ingestion and parsing of raw `.jsonl` event logs, structured storage in a SQLite database, statistical computation over match and session data, and exposure of results through a REST API with a lightweight frontend.
+This project has a job of taking jsonl files provided, parsing, cleaning and storing them in a SQLite database. After that API endpoints are provided, as well as profile section where you can search for players, get their match history, best maps etc.
 
 ---
 
@@ -17,39 +15,12 @@ This project implements a full data engineering pipeline on top of raw game even
 
 | Layer         | Technology              |
 | ------------- | ----------------------- |
-| Language      | Python 3.10+            |
+| Language      | Python 3.10             |
 | API Framework | FastAPI + Uvicorn       |
 | ORM           | SQLAlchemy              |
 | Database      | SQLite                  |
 | Frontend      | HTML / CSS / JavaScript |
 | Charting      | Chart.js                |
-
----
-
-## Project Structure
-
-```
-project/
-│
-├── app/
-│   ├── api.py          # FastAPI routes and request validation
-│   ├── stats.py        # Core statistical computation logic
-│   ├── database.py     # SQLAlchemy session and engine setup
-│   ├── models.py       # ORM models (User, MatchEvent, SessionPing, Map)
-│   ├── loader.py       # Database insertion logic
-│   ├── parser.py       # Raw .jsonl parsing and validation
-│   └── static/
-│       ├── index.html  # Landing page
-│       ├── chart.html  # Match count line chart (bonus)
-│       └── profile.html # Player profile search page (bonus)
-│
-├── data/
-│   ├── events.jsonl    # Raw game event log
-│   └── maps.jsonl      # Map metadata
-│
-├── main.py             # Entry point for data loading
-└── requirements.txt
-```
 
 ---
 
@@ -60,6 +31,31 @@ project/
 ```bash
 git clone https://github.com/ognjenobravocikg/NC.git
 cd NC
+```
+
+The project file system should like the following:
+
+```
+project/
+│
+├── app/
+│   ├── api.py
+│   ├── stats.py
+│   ├── database.py
+│   ├── models.py
+│   ├── loader.py
+│   ├── parser.py
+│   └── static/
+│       ├── index.html
+│       ├── chart.html
+│       └── profile.html
+│
+├── data/
+│   ├── events.jsonl
+│   └── maps.jsonl
+│
+├── main.py
+└── requirements.txt
 ```
 
 ### 2. Install dependencies

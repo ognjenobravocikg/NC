@@ -9,9 +9,6 @@ def get_user_stats(countries=None, oss=None):
     db = SessionLocal()
 
     try:
-        # ---------------------------------
-        # 1. LOAD USERS (with country filter)
-        # ---------------------------------
         user_query = db.query(User)
 
         if countries:
@@ -19,16 +16,10 @@ def get_user_stats(countries=None, oss=None):
 
         users = user_query.all()
 
-        # ---------------------------------
-        # 2. LOAD ALL MATCH EVENTS ONCE
-        # ---------------------------------
         events = db.query(MatchEvent).order_by(
             MatchEvent.timestamp
         ).all()
 
-        # ---------------------------------
-        # 3. RECONSTRUCT MATCHES
-        # ---------------------------------
         starts = defaultdict(list)
         processed_matches = set()
         user_matches = defaultdict(list)
@@ -65,9 +56,6 @@ def get_user_stats(countries=None, oss=None):
                     (event.map_id, opponent_outcome)
                 )
 
-        # ---------------------------------
-        # 4. LOAD MAPS (for names)
-        # ---------------------------------
         maps = {
             m.map_id: m.map_name
             for m in db.query(Map).all()
@@ -77,26 +65,17 @@ def get_user_stats(countries=None, oss=None):
 
         SESSION_GAP = 120  # seconds — gap threshold between sessions
 
-        # ---------------------------------
-        # 5. PER USER CALCULATIONS
-        # ---------------------------------
         for user in users:
 
             matches = user_matches.get(user.user_id, [])
             total_matches = len(matches)
 
-            # -----------------------------
-            # TOTAL WIN RATIO
-            # -----------------------------
             if total_matches > 0:
                 total_points = sum(outcome for _, outcome in matches)
                 total_win_ratio = round(total_points / total_matches, 3)
             else:
                 total_win_ratio = 0
 
-            # -----------------------------
-            # FAVORITE MAP
-            # -----------------------------
             map_groups = defaultdict(list)
 
             for map_id, outcome in matches:
@@ -120,7 +99,7 @@ def get_user_stats(countries=None, oss=None):
                 favorite_ratio = 0
 
             # -----------------------------
-            # SESSION PLAYTIME (no state column)
+            # SESSION PLAYTIME
             #
             # Group pings into sessions by gap:
             # if gap between consecutive pings > 120s
@@ -162,9 +141,6 @@ def get_user_stats(countries=None, oss=None):
                 total_playtime += prev_timestamp - session_start
                 session_count += 1
 
-            # -----------------------------
-            # AVG MATCHES PER SESSION
-            # -----------------------------
             if session_count > 0:
                 avg_matches_per_session = round(
                     total_matches / session_count, 3
@@ -172,9 +148,6 @@ def get_user_stats(countries=None, oss=None):
             else:
                 avg_matches_per_session = 0
 
-            # -----------------------------
-            # FINAL RESULT
-            # -----------------------------
             results.append({
                 "username": user.username,
                 "country": user.country,
@@ -193,9 +166,9 @@ def get_user_stats(countries=None, oss=None):
     finally:
         db.close()
 
-
 # IMPORTANT !!!: BECAUSE THIS IS A BONUS FUNCTIONALITY THAT I ADDED I DIDNT MIX IT WITH THE ABOVE FUNCTION, IN A REAL CASE SCENARIO IDEALY WE WOULD REUSE 
-# THE SAME MATCH RECONSTRUCTION LOGIC TO AVOID DUPLICATION, BUT I WANTED TO KEEP THIS SEPARATE TO NOT RISK BREAKING THE MAIN FUNCTIONALITY IN CASE OF BUGS IN THIS BONUS PART
+# THE SAME MATCH RECONSTRUCTION LOGIC TO AVOID DUPLICATION AND SLOWER PERFORMANCE, BUT I WANTED TO KEEP THIS SEPARATE FOR THE SAKE OF READABILITY BY CHALLANGER EXAMINERS
+
 def get_player_stats(username):
 
     db = SessionLocal()
@@ -262,7 +235,6 @@ def get_player_stats(username):
                     )
                     opponent_id = event.user_id
 
-                # Resolve opponent username
                 opponent = db.query(User).filter(
                     User.user_id == opponent_id
                 ).first()
@@ -288,9 +260,6 @@ def get_player_stats(username):
 
                 map_outcomes[event.map_id].append(user_outcome)
 
-        # ---------------------------------
-        # 5. TOTAL WIN RATIO
-        # ---------------------------------
         total_matches = len(match_history)
         total_win_ratio = 0
 
@@ -299,9 +268,6 @@ def get_player_stats(username):
                 sum(m["outcome"] for m in match_history) / total_matches, 3
             )
 
-        # ---------------------------------
-        # 6. BEST MAP
-        # ---------------------------------
         best_map_name  = None
         best_map_ratio = 0
 
@@ -311,9 +277,6 @@ def get_player_stats(username):
                 best_map_ratio = ratio
                 best_map_name  = maps.get(map_id)
 
-        # ---------------------------------
-        # 7. SORT MATCH HISTORY BY DATE DESC
-        # ---------------------------------
         match_history.sort(key=lambda x: x["date"], reverse=True)
 
         return {
@@ -338,14 +301,10 @@ def get_map_stats(map_name, start_date=None, end_date=None):
     db = SessionLocal()
 
     try:
-        # ---------------------------------
-        # 1. MAP NAME → MAP ID
-        # ---------------------------------
         game_map = db.query(Map).filter(
             Map.map_name == map_name
         ).first()
 
-        # AFTER
         if not game_map:
             print(f"[MAP NOT FOUND] map_name={map_name}")
             return None
@@ -353,23 +312,14 @@ def get_map_stats(map_name, start_date=None, end_date=None):
         map_id = game_map.map_id
         print(f"[MAP FOUND] map_name={map_name} map_id={map_id}")
 
-        # ---------------------------------
-        # 2. LOAD EVENTS (ORDERED)
-        # ---------------------------------
         events = db.query(MatchEvent).filter(
             MatchEvent.map_id == map_id
         ).order_by(MatchEvent.timestamp).all()
 
         print(f"[EVENTS LOADED] total_events={len(events)}")
 
-        # ---------------------------------
-        # 3. MATCH START STORAGE
-        # ---------------------------------
         starts = defaultdict(list)
 
-        # ---------------------------------
-        # 4. COLLECT ALL FINISHED MATCHES
-        # ---------------------------------
         all_matches = []
 
         processed_matches = set()
@@ -420,15 +370,9 @@ def get_map_stats(map_name, start_date=None, end_date=None):
 
         print(f"\n[ALL MATCHES COLLECTED] total_matches={len(all_matches)}")
 
-        # ---------------------------------
-        # 5. GET SORTED UNIQUE DATES
-        # ---------------------------------
         all_dates = sorted(set(m[0] for m in all_matches))
         print(f"[ALL DATES] {all_dates}")
 
-        # ---------------------------------
-        # 6. BUILD DAILY STATS + CUMULATIVE WIN RATIOS
-        # ---------------------------------
         results = []
 
         cumulative_wins = defaultdict(float)
@@ -508,9 +452,6 @@ def get_map_stats(map_name, start_date=None, end_date=None):
                 "match_cnt": match_count
             })
 
-        # ---------------------------------
-        # 7. SORT BY DATE DESCENDING
-        # ---------------------------------
         results.sort(key=lambda x: x["date"], reverse=True)
 
         print(f"\n[FINAL RESULTS] total_rows={len(results)}")
