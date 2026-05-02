@@ -4,26 +4,33 @@ from app.models import User, MatchEvent, SessionPing, Map
 from datetime import date, datetime, UTC
 from collections import defaultdict
 
-def get_user_stats():
+def get_user_stats(countries=None, oss=None):
 
     db = SessionLocal()
 
     try:
-        users = db.query(User).all()
+        # ---------------------------------
+        # 1. LOAD USERS (with country filter)
+        # ---------------------------------
+        user_query = db.query(User)
+
+        if countries:
+            user_query = user_query.filter(User.country.in_(countries))
+
+        users = user_query.all()
 
         # ---------------------------------
-        # 1. LOAD ALL MATCH EVENTS ONCE
+        # 2. LOAD ALL MATCH EVENTS ONCE
         # ---------------------------------
         events = db.query(MatchEvent).order_by(
             MatchEvent.timestamp
         ).all()
 
         # ---------------------------------
-        # 2. RECONSTRUCT MATCHES
+        # 3. RECONSTRUCT MATCHES
         # ---------------------------------
         starts = defaultdict(list)
-
-        # user_id → list of (map_id, outcome)
+        processed_matches = set()
         user_matches = defaultdict(list)
 
         for event in events:
@@ -36,18 +43,30 @@ def get_user_stats():
 
             elif event.event_type == "match_finish":
 
+                match_instance_key = (players, event.map_id, event.timestamp)
+
+                if match_instance_key in processed_matches:
+                    continue
+
                 if key not in starts or not starts[key]:
                     continue
 
-                start_time = starts[key].pop(0)
+                starts[key].pop(0)
+                processed_matches.add(match_instance_key)
 
-                # assign outcome ONLY to current user
+                opponent_outcome = (
+                    1.0 - event.outcome if event.outcome in [0, 1] else 0.5
+                )
+
                 user_matches[event.user_id].append(
                     (event.map_id, event.outcome)
                 )
+                user_matches[event.opponent_id].append(
+                    (event.map_id, opponent_outcome)
+                )
 
         # ---------------------------------
-        # 3. LOAD MAPS (for names)
+        # 4. LOAD MAPS (for names)
         # ---------------------------------
         maps = {
             m.map_id: m.map_name
@@ -56,8 +75,10 @@ def get_user_stats():
 
         results = []
 
+        SESSION_GAP = 120  # seconds — gap threshold between sessions
+
         # ---------------------------------
-        # 4. PER USER CALCULATIONS
+        # 5. PER USER CALCULATIONS
         # ---------------------------------
         for user in users:
 
@@ -69,9 +90,7 @@ def get_user_stats():
             # -----------------------------
             if total_matches > 0:
                 total_points = sum(outcome for _, outcome in matches)
-                total_win_ratio = round(
-                    total_points / total_matches, 3
-                )
+                total_win_ratio = round(total_points / total_matches, 3)
             else:
                 total_win_ratio = 0
 
@@ -87,9 +106,7 @@ def get_user_stats():
             favorite_ratio = -1
 
             for map_id, outcomes in map_groups.items():
-
                 ratio = sum(outcomes) / len(outcomes)
-
                 if ratio > favorite_ratio:
                     favorite_ratio = ratio
                     favorite_map_id = map_id
@@ -103,27 +120,47 @@ def get_user_stats():
                 favorite_ratio = 0
 
             # -----------------------------
-            # SESSION PLAYTIME
+            # SESSION PLAYTIME (no state column)
+            #
+            # Group pings into sessions by gap:
+            # if gap between consecutive pings > 120s
+            # → new session starts
+            #
+            # Session duration = last ping - first ping in group
             # -----------------------------
-            pings = db.query(SessionPing).filter(
+            pings_query = db.query(SessionPing).filter(
                 SessionPing.user_id == user.user_id
-            ).order_by(SessionPing.timestamp).all()
+            )
+
+            if oss:
+                pings_query = pings_query.filter(
+                    SessionPing.device_os.in_(oss)
+                )
+
+            pings = pings_query.order_by(SessionPing.timestamp).all()
 
             total_playtime = 0
             session_count = 0
-            current_start = None
 
-            for ping in pings:
+            if pings:
+                session_start = pings[0].timestamp
+                prev_timestamp = pings[0].timestamp
 
-                if ping.state == "started":
-                    current_start = ping.timestamp
+                for ping in pings[1:]:
 
-                elif ping.state == "ended" and current_start:
-                    total_playtime += (
-                        ping.timestamp - current_start
-                    )
-                    session_count += 1
-                    current_start = None
+                    gap = ping.timestamp - prev_timestamp
+
+                    if gap > SESSION_GAP:
+                        # Gap too large — close current session, start new one
+                        total_playtime += prev_timestamp - session_start
+                        session_count += 1
+                        session_start = ping.timestamp
+
+                    prev_timestamp = ping.timestamp
+
+                # Close the final session
+                total_playtime += prev_timestamp - session_start
+                session_count += 1
 
             # -----------------------------
             # AVG MATCHES PER SESSION
@@ -141,28 +178,23 @@ def get_user_stats():
             results.append({
                 "username": user.username,
                 "country": user.country,
-                "registration_os": user.registration_os,
-                "favorite_map": favorite_map_name,
-                "favorite_map_win_ratio": round(favorite_ratio, 3),
-                "total_playtime_seconds": total_playtime,
+                "fav_map": favorite_map_name,
+                "fav_map_win_ratio": round(favorite_ratio, 3),
+                "total_playtime": total_playtime,
                 "total_win_ratio": total_win_ratio,
-                "average_matches_per_session": avg_matches_per_session,
+                "avg_matches_per_session": avg_matches_per_session,
                 "registration_date": date.fromtimestamp(user.registration_timestamp)
             })
 
-        # ---------------------------------
-        # SORT RESULTS
-        # ---------------------------------
-        results.sort(
-            key=lambda x: x["total_win_ratio"],
-            reverse=True
-        )
+        results.sort(key=lambda x: x["total_playtime"], reverse=True)
 
         return results
 
     finally:
         db.close()
 
+
+# ADD SO NULL USERS ARE NAMED AS "Unknown user with ID {user_id}"
 def get_map_stats(map_name, start_date=None, end_date=None):
 
     db = SessionLocal()

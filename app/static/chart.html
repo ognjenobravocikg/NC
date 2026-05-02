@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Match Count</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #0f1117;
+        color: #e0e0e0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+        margin-bottom: 8px;
+        color: #ffffff;
+      }
+
+      p.subtitle {
+        font-size: 0.9rem;
+        color: #888;
+        margin-bottom: 32px;
+      }
+
+      .chart-wrapper {
+        background: #1a1d27;
+        border-radius: 16px;
+        padding: 32px;
+        width: 100%;
+        max-width: 960px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      canvas {
+        width: 100% !important;
+      }
+
+      .error {
+        color: #ff6b6b;
+        margin-top: 20px;
+        font-size: 0.95rem;
+      }
+
+      .loading {
+        color: #888;
+        margin-top: 20px;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Map Match Count</h1>
+    <p class="subtitle">Dataset-driven timeline</p>
+
+    <div class="chart-wrapper">
+      <canvas id="matchChart"></canvas>
+    </div>
+
+    <p id="status" class="loading">Loading data...</p>
+
+    <script>
+      // -------------------------------------------
+      // CONFIG
+      // -------------------------------------------
+      const API_BASE = "http://localhost:8000";
+
+      const MAP_NAMES = ["Lake", "Cobblestone", "Inferno", "Desert", "Forest"];
+
+      const COLORS = [
+        "#4fc3f7",
+        "#81c784",
+        "#ffb74d",
+        "#f06292",
+        "#ce93d8",
+        "#80cbc4",
+      ];
+
+      // -------------------------------------------
+      // FETCH AVAILABLE DATES (FROM REAL DATA)
+      // -------------------------------------------
+      async function fetchAvailableDates() {
+        const res = await fetch(`${API_BASE}/map-stats/Forest`);
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch dates");
+        }
+
+        const data = await res.json();
+
+        if (!data.length) return [];
+
+        // extract + sort dates
+        return data.map((r) => r.date).sort();
+      }
+
+      // -------------------------------------------
+      // BUILD CHART
+      // -------------------------------------------
+      async function buildChart() {
+        const status = document.getElementById("status");
+
+        try {
+          // 1. get real dataset dates
+          const dates = await fetchAvailableDates();
+
+          if (!dates.length) {
+            status.textContent = "No data available.";
+            return;
+          }
+
+          const dateFrom = dates[0];
+          const dateTo = dates[dates.length - 1];
+
+          // 2. fetch all maps
+          const allData = await Promise.all(
+            MAP_NAMES.map((name) =>
+              fetch(
+                `${API_BASE}/map-stats/${name}?start_date=${dateFrom}&end_date=${dateTo}`,
+              )
+                .then((r) => {
+                  if (!r.ok) throw new Error(`Failed ${name}`);
+                  return r.json();
+                })
+                .then((rows) => ({ name, rows })),
+            ),
+          );
+
+          // 3. build datasets
+          const datasets = allData.map(({ name, rows }, i) => {
+            const byDate = {};
+
+            rows.forEach((r) => {
+              byDate[r.date] = r.match_cnt;
+            });
+
+            return {
+              label: name,
+              data: dates.map((d) => byDate[d] ?? 0),
+              borderColor: COLORS[i % COLORS.length],
+              backgroundColor: COLORS[i % COLORS.length] + "22",
+              borderWidth: 2.5,
+              pointRadius: 4,
+              tension: 0.3,
+              fill: false,
+            };
+          });
+
+          status.textContent = "";
+
+          // 4. render chart
+          const ctx = document.getElementById("matchChart").getContext("2d");
+
+          new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: dates,
+              datasets,
+            },
+            options: {
+              responsive: true,
+              interaction: {
+                mode: "index",
+                intersect: false,
+              },
+              plugins: {
+                legend: {
+                  labels: { color: "#cccccc" },
+                },
+              },
+              scales: {
+                x: {
+                  ticks: { color: "#888" },
+                  grid: { color: "#2a2d3a" },
+                },
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    color: "#888",
+                    stepSize: 1,
+                    precision: 0,
+                  },
+                  grid: { color: "#2a2d3a" },
+                },
+              },
+            },
+          });
+        } catch (err) {
+          status.className = "error";
+          status.textContent = "Error loading data.";
+          console.error(err);
+        }
+      }
+
+      buildChart();
+    </script>
+  </body>
+</html>

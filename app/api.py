@@ -1,11 +1,25 @@
 from fastapi import FastAPI, Query
 from typing import List, Optional
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.stats import get_user_stats, get_map_stats
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
 app = FastAPI(
     title="Golf Rival Data API",
     description="Data Engineering Challenge API",
     version="1.0"
+)
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------
@@ -16,16 +30,16 @@ def user_stats(
     countries: Optional[List[str]] = Query(None),
     oss: Optional[List[str]] = Query(None)
 ):
-    data = get_user_stats()
+    return get_user_stats(countries=countries, oss=oss)
 
-    # Optional filtering (bonus)
-    if countries:
-        data = [u for u in data if u["country"] in countries]
 
-    if oss:
-        data = [u for u in data if u["registration_os"] in oss]
-
-    return data
+# ---------------------------------
+# CHART
+# ---------------------------------
+@app.get("/chart")
+def get_chart():
+    file_path = os.path.join("app", "static", "chart.html")
+    return FileResponse(file_path)
 
 
 # ---------------------------------
@@ -34,13 +48,11 @@ def user_stats(
 @app.get("/map-stats/{map_name}")
 def map_stats(
     map_name: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
-    data = get_map_stats(
+    return get_map_stats(
         map_name,
-        start_date=start_date,
-        end_date=end_date
+        start_date=date_from,
+        end_date=date_to
     )
-
-    return data
