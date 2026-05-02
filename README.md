@@ -1,4 +1,4 @@
-# Nordeus Data Engineering Challenge
+# Data Engineering Challenge
 
 Project by Ognjen Obradovic
 
