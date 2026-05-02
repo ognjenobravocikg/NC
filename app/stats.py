@@ -194,7 +194,145 @@ def get_user_stats(countries=None, oss=None):
         db.close()
 
 
-# ADD SO NULL USERS ARE NAMED AS "Unknown user with ID {user_id}"
+# IMPORTANT !!!: BECAUSE THIS IS A BONUS FUNCTIONALITY THAT I ADDED I DIDNT MIX IT WITH THE ABOVE FUNCTION, IN A REAL CASE SCENARIO IDEALY WE WOULD REUSE 
+# THE SAME MATCH RECONSTRUCTION LOGIC TO AVOID DUPLICATION, BUT I WANTED TO KEEP THIS SEPARATE TO NOT RISK BREAKING THE MAIN FUNCTIONALITY IN CASE OF BUGS IN THIS BONUS PART
+def get_player_stats(username):
+
+    db = SessionLocal()
+
+    try:
+        user = db.query(User).filter(
+            func.lower(User.username) == username.lower()
+        ).first()
+
+        if not user:
+            return None
+        
+        events = db.query(MatchEvent).order_by(
+            MatchEvent.timestamp
+        ).all()
+
+        maps = {
+            m.map_id: m.map_name
+            for m in db.query(Map).all()
+        }
+
+        starts = defaultdict(list)
+        processed_matches = set()
+
+        # (date_str, map_name, outcome, opponent_username, duration)
+        match_history = []
+
+        # map_id -> [outcome, ...] for best map calculation
+        map_outcomes = defaultdict(list)
+
+        for event in events:
+
+            players = tuple(sorted([event.user_id, event.opponent_id]))
+            key = (players, event.map_id)
+
+            if event.event_type == "match_start":
+                starts[key].append(event.timestamp)
+
+            elif event.event_type == "match_finish":
+
+                match_instance_key = (players, event.map_id, event.timestamp)
+
+                if match_instance_key in processed_matches:
+                    continue
+
+                if key not in starts or not starts[key]:
+                    continue
+
+                start_time = starts[key].pop(0)
+                duration = event.timestamp - start_time
+                processed_matches.add(match_instance_key)
+
+                # Only record if this user is involved
+                if event.user_id != user.user_id and event.opponent_id != user.user_id:
+                    continue
+
+                # Determine outcome from this user's perspective
+                if event.user_id == user.user_id:
+                    user_outcome = event.outcome
+                    opponent_id  = event.opponent_id
+                else:
+                    user_outcome = (
+                        1.0 - event.outcome if event.outcome in [0, 1] else 0.5
+                    )
+                    opponent_id = event.user_id
+
+                # Resolve opponent username
+                opponent = db.query(User).filter(
+                    User.user_id == opponent_id
+                ).first()
+
+                opponent_username = (
+                    opponent.username if opponent
+                    else f"Unknown user with ID {opponent_id}"
+                )
+
+                date_str = datetime.utcfromtimestamp(
+                    event.timestamp
+                ).strftime("%Y-%m-%d")
+
+                map_name = maps.get(event.map_id, f"Unknown map {event.map_id}")
+
+                match_history.append({
+                    "date":             date_str,
+                    "map":              map_name,
+                    "opponent":         opponent_username,
+                    "outcome":          user_outcome,
+                    "duration_seconds": duration,
+                })
+
+                map_outcomes[event.map_id].append(user_outcome)
+
+        # ---------------------------------
+        # 5. TOTAL WIN RATIO
+        # ---------------------------------
+        total_matches = len(match_history)
+        total_win_ratio = 0
+
+        if total_matches > 0:
+            total_win_ratio = round(
+                sum(m["outcome"] for m in match_history) / total_matches, 3
+            )
+
+        # ---------------------------------
+        # 6. BEST MAP
+        # ---------------------------------
+        best_map_name  = None
+        best_map_ratio = 0
+
+        for map_id, outcomes in map_outcomes.items():
+            ratio = sum(outcomes) / len(outcomes)
+            if ratio > best_map_ratio:
+                best_map_ratio = ratio
+                best_map_name  = maps.get(map_id)
+
+        # ---------------------------------
+        # 7. SORT MATCH HISTORY BY DATE DESC
+        # ---------------------------------
+        match_history.sort(key=lambda x: x["date"], reverse=True)
+
+        return {
+            "username":        user.username,
+            "country":         user.country,
+            "registration_date": date.fromtimestamp(
+                user.registration_timestamp
+            ).strftime("%Y-%m-%d"),
+            "total_win_ratio": total_win_ratio,
+            "total_matches":   total_matches,
+            "best_map":        best_map_name,
+            "best_map_ratio":  round(best_map_ratio, 3),
+            "match_history":   match_history,
+        }
+
+    finally:
+        db.close()
+
+
 def get_map_stats(map_name, start_date=None, end_date=None):
 
     db = SessionLocal()
@@ -207,9 +345,10 @@ def get_map_stats(map_name, start_date=None, end_date=None):
             Map.map_name == map_name
         ).first()
 
+        # AFTER
         if not game_map:
             print(f"[MAP NOT FOUND] map_name={map_name}")
-            return []
+            return None
 
         map_id = game_map.map_id
         print(f"[MAP FOUND] map_name={map_name} map_id={map_id}")
@@ -349,6 +488,7 @@ def get_map_stats(map_name, start_date=None, end_date=None):
 
             print(f"  [BEST PLAYER] user_id={best_user_id} ratio={round(best_ratio, 4)}")
 
+    
             best_username = None
             if best_user_id:
                 user = db.query(User).filter(
@@ -358,7 +498,8 @@ def get_map_stats(map_name, start_date=None, end_date=None):
                     best_username = user.username
                     print(f"  [BEST PLAYER USERNAME] {best_username}")
                 else:
-                    print(f"  [BEST PLAYER USERNAME] NOT FOUND for user_id={best_user_id}")
+                    best_username = f"Unknown user with ID {best_user_id}"
+                    print(f"  [BEST PLAYER USERNAME] NOT FOUND for user_id={best_user_id}, using fallback")
 
             results.append({
                 "date": date_str,

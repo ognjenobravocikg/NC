@@ -4,9 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Map Match Count</title>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-
     <style>
       * {
         box-sizing: border-box;
@@ -30,19 +28,26 @@
         margin-bottom: 8px;
         color: #ffffff;
       }
-
       p.subtitle {
         font-size: 0.9rem;
         color: #888;
         margin-bottom: 32px;
       }
 
+      /* --- MAIN LAYOUT --- */
+      .main-layout {
+        display: flex;
+        gap: 24px;
+        width: 100%;
+        max-width: 1300px;
+        align-items: flex-start;
+      }
+
       .chart-wrapper {
         background: #1a1d27;
         border-radius: 16px;
         padding: 32px;
-        width: 100%;
-        max-width: 960px;
+        flex: 1;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       }
 
@@ -50,12 +55,117 @@
         width: 100% !important;
       }
 
+      /* --- DETAIL PANEL --- */
+      .detail-panel {
+        background: #1a1d27;
+        border-radius: 16px;
+        padding: 24px;
+        width: 280px;
+        min-width: 280px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        min-height: 300px;
+      }
+
+      .detail-panel h2 {
+        font-size: 1rem;
+        color: #ffffff;
+        margin-bottom: 4px;
+      }
+
+      .detail-panel .hint {
+        font-size: 0.78rem;
+        color: #555;
+        margin-bottom: 20px;
+      }
+
+      /* Date selector list */
+      .date-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 24px;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+
+      .date-btn {
+        background: #23263a;
+        border: 1px solid #2e3150;
+        border-radius: 8px;
+        color: #aaa;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+      }
+
+      .date-btn:hover {
+        background: #2a2f4a;
+        color: #fff;
+      }
+
+      .date-btn.active {
+        background: #2e3a6e;
+        border-color: #4fc3f7;
+        color: #4fc3f7;
+        font-weight: 600;
+      }
+
+      /* Breakdown table */
+      .breakdown-title {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .breakdown-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      .breakdown-table th {
+        color: #555;
+        text-align: left;
+        padding: 4px 8px;
+        border-bottom: 1px solid #2a2d3a;
+        font-weight: 500;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+      }
+
+      .breakdown-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid #1e2130;
+        color: #ddd;
+      }
+
+      .breakdown-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+
+      .no-data {
+        color: #444;
+        font-size: 0.85rem;
+        margin-top: 12px;
+      }
+
       .error {
         color: #ff6b6b;
         margin-top: 20px;
         font-size: 0.95rem;
       }
-
       .loading {
         color: #888;
         margin-top: 20px;
@@ -64,28 +174,52 @@
     </style>
   </head>
 
-  <div style="position: absolute; top: 20px; left: 20px">
-    <a href="/">Home</a>
-  </div>
-
   <body>
-    <h1>Map Match Count</h1>
-    <p class="subtitle">Dataset-driven timeline</p>
+    <div style="position: absolute; top: 20px; left: 20px">
+      <a href="/" style="color: #888; text-decoration: none">← Home</a>
+    </div>
 
-    <div class="chart-wrapper">
-      <canvas id="matchChart"></canvas>
+    <h1>Map Match Count</h1>
+    <p class="subtitle">Dataset-driven timeline — click a date to inspect</p>
+
+    <div class="main-layout">
+      <!-- CHART -->
+      <div class="chart-wrapper">
+        <canvas id="matchChart"></canvas>
+      </div>
+
+      <!-- DETAIL PANEL -->
+      <div class="detail-panel">
+        <h2>Daily Breakdown</h2>
+        <p class="hint">Select a date to see match counts per map</p>
+
+        <div class="date-list" id="dateList"></div>
+
+        <div id="breakdownSection" style="display: none">
+          <p class="breakdown-title" id="breakdownTitle"></p>
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Map</th>
+                <th>Matches</th>
+                <th>Avg Time</th>
+              </tr>
+            </thead>
+            <tbody id="breakdownBody"></tbody>
+          </table>
+        </div>
+
+        <p class="no-data" id="noData" style="display: none">
+          No matches on this date.
+        </p>
+      </div>
     </div>
 
     <p id="status" class="loading">Loading data...</p>
 
     <script>
-      // -------------------------------------------
-      // CONFIG
-      // -------------------------------------------
       const API_BASE = "http://localhost:8000";
-
       const MAP_NAMES = ["Lake", "Cobblestone", "Inferno", "Desert", "Forest"];
-
       const COLORS = [
         "#4fc3f7",
         "#81c784",
@@ -95,22 +229,79 @@
         "#80cbc4",
       ];
 
+      // Stores all fetched data indexed by map name then date
+      // allData[mapName][date] = { match_cnt, avg_playtime, best_player_username }
+      let allData = {};
+      let chartDates = [];
+
       // -------------------------------------------
-      // FETCH AVAILABLE DATES (FROM REAL DATA)
+      // FETCH
       // -------------------------------------------
       async function fetchAvailableDates() {
         const res = await fetch(`${API_BASE}/map-stats/Forest`);
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch dates");
-        }
-
+        if (!res.ok) throw new Error("Failed to fetch dates");
         const data = await res.json();
-
-        if (!data.length) return [];
-
-        // extract + sort dates
         return data.map((r) => r.date).sort();
+      }
+
+      // -------------------------------------------
+      // RENDER DETAIL PANEL FOR A DATE
+      // -------------------------------------------
+      function showBreakdown(dateStr) {
+        // Highlight active button
+        document.querySelectorAll(".date-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.date === dateStr);
+        });
+
+        const tbody = document.getElementById("breakdownBody");
+        const section = document.getElementById("breakdownSection");
+        const noData = document.getElementById("noData");
+        const title = document.getElementById("breakdownTitle");
+
+        tbody.innerHTML = "";
+
+        let totalMatches = 0;
+
+        MAP_NAMES.forEach((name, i) => {
+          const row = allData[name]?.[dateStr];
+          const cnt = row?.match_cnt ?? 0;
+          totalMatches += cnt;
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><span class="dot" style="background:${COLORS[i % COLORS.length]}"></span>${name}</td>
+            <td>${cnt}</td>
+            <td>${row?.avg_playtime != null ? row.avg_playtime + "s" : "—"}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        title.textContent = `${dateStr}  ·  ${totalMatches} total match${totalMatches !== 1 ? "es" : ""}`;
+
+        if (totalMatches === 0) {
+          section.style.display = "none";
+          noData.style.display = "block";
+        } else {
+          section.style.display = "block";
+          noData.style.display = "none";
+        }
+      }
+
+      // -------------------------------------------
+      // BUILD DATE BUTTON LIST
+      // -------------------------------------------
+      function buildDateList(dates) {
+        const container = document.getElementById("dateList");
+        container.innerHTML = "";
+
+        dates.forEach((dateStr) => {
+          const btn = document.createElement("button");
+          btn.className = "date-btn";
+          btn.textContent = dateStr;
+          btn.dataset.date = dateStr;
+          btn.addEventListener("click", () => showBreakdown(dateStr));
+          container.appendChild(btn);
+        });
       }
 
       // -------------------------------------------
@@ -120,22 +311,20 @@
         const status = document.getElementById("status");
 
         try {
-          // 1. get real dataset dates
-          const dates = await fetchAvailableDates();
-
-          if (!dates.length) {
+          chartDates = await fetchAvailableDates();
+          if (!chartDates.length) {
             status.textContent = "No data available.";
             return;
           }
 
-          const dateFrom = dates[0];
-          const dateTo = dates[dates.length - 1];
+          const dateFrom = chartDates[0];
+          const dateTo = chartDates[chartDates.length - 1];
 
-          // 2. fetch all maps
-          const allData = await Promise.all(
+          // Fetch all maps in parallel
+          const fetched = await Promise.all(
             MAP_NAMES.map((name) =>
               fetch(
-                `${API_BASE}/map-stats/${name}?start_date=${dateFrom}&end_date=${dateTo}`,
+                `${API_BASE}/map-stats/${name}?date_from=${dateFrom}&date_to=${dateTo}`,
               )
                 .then((r) => {
                   if (!r.ok) throw new Error(`Failed ${name}`);
@@ -145,65 +334,62 @@
             ),
           );
 
-          // 3. build datasets
-          const datasets = allData.map(({ name, rows }, i) => {
-            const byDate = {};
-
+          // Index into allData[mapName][date]
+          fetched.forEach(({ name, rows }) => {
+            allData[name] = {};
             rows.forEach((r) => {
-              byDate[r.date] = r.match_cnt;
+              allData[name][r.date] = r;
             });
-
-            return {
-              label: name,
-              data: dates.map((d) => byDate[d] ?? 0),
-              borderColor: COLORS[i % COLORS.length],
-              backgroundColor: COLORS[i % COLORS.length] + "22",
-              borderWidth: 2.5,
-              pointRadius: 4,
-              tension: 0.3,
-              fill: false,
-            };
           });
+
+          // Build chart datasets
+          const datasets = fetched.map(({ name }, i) => ({
+            label: name,
+            data: chartDates.map((d) => allData[name][d]?.match_cnt ?? 0),
+            borderColor: COLORS[i % COLORS.length],
+            backgroundColor: COLORS[i % COLORS.length] + "22",
+            borderWidth: 2.5,
+            pointRadius: 4,
+            tension: 0.3,
+            fill: false,
+          }));
 
           status.textContent = "";
 
-          // 4. render chart
           const ctx = document.getElementById("matchChart").getContext("2d");
 
-          new Chart(ctx, {
+          const chart = new Chart(ctx, {
             type: "line",
-            data: {
-              labels: dates,
-              datasets,
-            },
+            data: { labels: chartDates, datasets },
             options: {
               responsive: true,
-              interaction: {
-                mode: "index",
-                intersect: false,
+              interaction: { mode: "index", intersect: false },
+              // Clicking a point on the chart also triggers the panel
+              onClick(_, elements) {
+                if (elements.length) {
+                  showBreakdown(chartDates[elements[0].index]);
+                }
               },
               plugins: {
-                legend: {
-                  labels: { color: "#cccccc" },
-                },
+                legend: { labels: { color: "#cccccc" } },
               },
               scales: {
-                x: {
-                  ticks: { color: "#888" },
-                  grid: { color: "#2a2d3a" },
-                },
+                x: { ticks: { color: "#888" }, grid: { color: "#2a2d3a" } },
                 y: {
                   beginAtZero: true,
-                  ticks: {
-                    color: "#888",
-                    stepSize: 1,
-                    precision: 0,
-                  },
+                  ticks: { color: "#888", stepSize: 1, precision: 0 },
                   grid: { color: "#2a2d3a" },
                 },
               },
             },
           });
+
+          // Build sidebar date buttons
+          buildDateList(chartDates);
+
+          // Auto-select the most recent date
+          if (chartDates.length)
+            showBreakdown(chartDates[chartDates.length - 1]);
         } catch (err) {
           status.className = "error";
           status.textContent = "Error loading data.";
