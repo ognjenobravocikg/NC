@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Nord Challenge</title>
+    <style>
+      body {
+        background: #0f1117;
+        color: white;
+        font-family: Arial;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .container {
+        text-align: center;
+      }
+
+      h1 {
+        margin-bottom: 40px;
+      }
+
+      .buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+      }
+
+      a {
+        text-decoration: none;
+        padding: 15px 25px;
+        background: #1a1d27;
+        border-radius: 10px;
+        color: white;
+        transition: 0.2s;
+      }
+
+      a:hover {
+        background: #2a2f3d;
+      }
+    </style>
+  </head>
+
+  <div style="position: absolute; top: 20px; left: 20px">
+    <a href="/">Home</a>
+  </div>
+
+  <body>
+    <div class="container">
+      <h1>Nord Challenge Dashboard</h1>
+
+      <div class="buttons">
+        <a href="/static/chart.html">📊 Charts</a>
+        <a href="/docs">📄 API Docs</a>
+        <a href="/static/profile.html">👤 Profile</a>
+      </div>
+    </div>
+  </body>
+</html>

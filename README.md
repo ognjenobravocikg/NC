@@ -1,96 +1,177 @@
-# Nordeus Data Engineering Challenge
+# Data Engineering Challenge
 
-Project by Ognjen Obradovic
+Project by Ognjen Obradović.
 
-This project processes raw gameplay event data (from JSONL files) and exposes insights through a RestAPI.
+Challenge provided by Nordeus, you can download the analyze the challenge and download the dataset with the link: https://nordeus.com/nordeus-challenge/data-engineering/
 
-## Approach
+The main goals of the project are:
 
-We can divide the solution into 4 main stages:
-
-1. ----- PARSING AND CLEANING THE DATA -----
-   In this stage I created a simple ETL that: - Reads JSONL input - Removes either invalid or duplicate events - Applies rules per event type
-
-2. ----- DATA STORAGE -----
-   This is where the Loading part of the ETL happens. For this project I used SQLite and SQLAlchemy ORM. We store normalized tables for: - users - session_pings - match_events - maps
-
-3. ----- DATA PROCESSING -----
-   Logic for the APIs, handling statistics about maps and events. - Reconstructing matches from match_start and match_finish events - Calculating durations, win ratios and aggregates
-
-4. ----- API LAYER -----
-   Providing endpoints for testing and viewing the data. Built using FastAPI.
-
-## DATA
-
-Here we explain what we store in the database as well as explaining for some data columns.
-
-### Users
-
-- id
-- username
-- country
-- device_os
-- registration_timestamps
-
-### Session Pings
-
-- user_id
-- timestamp (later used for calculating time spent in the application)
-- state
-
-### Match Events
-
-- id
-- event_type (either match_start or match_finish)
-- user_id
-- opponent_id
-- map_id
-- timestamp
-- outcome (can be NULL value for the match_start event type)
-
-### Maps
-
-- map_id
-- map_name
-
-## Key Design Decisions
-
-- **Single-pass parsing**
-  Input file is processed only once, then persisted.
-
-- **Event deduplication**
-  Duplicate events are removed using a business-level key.
-
-- **Match reconstruction**
-  Matches are reconstructed by pairing match_start and match_finish events using:
-  - unordered player pairs
-  - map_id
-  - chronological ordering
-
-- **Accurate playtime calculation**
-  Map playtime is computed using match durations instead of session pings.
-
-- **Session tracking**
-  Uses session_ping start/end events to calculate total playtime.
-
-## API Endpoints
-
-### GET /user-stats
-
-Returns player statistics.
-
-Optional filters:
-
-- countries
-- oss
+- Parsing and cleaning raw `.jsonl` event data
+- Storing structured data in a SQLite database
+- Computing of the statistics (user stats, map stats)
+- Exposing and providing API results via FastAPI
 
 ---
 
-### GET /map-stats/{map_name}
+## Tech Stack
 
-Returns daily statistics for a map.
+- Python 3.10+
+- FastAPI
+- SQLAlchemy
+- SQLite
+- Uvicorn
+- Chart.js (frontend)
+
+---
+
+## Setup Instructions
+
+### 1. Setting up
+
+```
+git clone https://github.com/ognjenobravocikg/NC.git
+cd NC
+```
+
+After cloning the repo, in your IDE or File Manager you should be able to see this file structure
+
+```
+project/
+│
+├── app/
+│   ├── api.py
+│   ├── stats.py
+│   ├── database.py
+│   ├── models.py
+│   ├── loader.py
+│   ├── parser.py
+│   └── static/
+│       ├── index.html
+│       ├── chart.html
+│       └── profile.html
+│
+├── data/
+│   ├── events.jsonl
+│   └── maps.jsonl
+│
+├── main.py
+├── requirements.txt
+```
+
+You should be able to download the project dependencies via the terminal and using the command
+
+```
+pip install -r requirements.txt
+```
+
+---
+
+### 2. Load data into database
+
+In the main project directory
+
+```
+python main.py
+```
+
+This will parse the data, clean the invalid rows and populate the SQLite database in the main project directory called 'nord_challenge.db'. For viewing the database you can use something like DB Browser and open the database.
+
+---
+
+### 3. Run API server
+
+Also in the main project directory
+
+```
+uvicorn app.api:app --reload
+```
+
+In your browser go to the domain provided in the terminal. That will get you to the main landing page
+
+---
+
+## Usage
+
+### Landing Page
+
+```
+http://127.0.0.1:8000/
+```
+
+Now when you are at the landing page, you can either navigate to the charts which contain multiple relevant charts for the bonuses of the challenge.
+
+## API Endpoints
+
+### Get Map Stats
+
+```
+GET /map-stats/{map_name}
+```
 
 Optional query params:
 
-- start_date (YYYY-MM-DD)
-- end_date (YYYY-MM-DD)
+- `start_date` (YYYY-MM-DD)
+- `end_date` (YYYY-MM-DD)
+
+---
+
+### Get User Stats
+
+```
+GET /user-stats
+```
+
+Optional filters:
+
+- `countries`
+- `oss`
+
+---
+
+## Data Processing
+
+The parser performs:
+
+- validation of all event types
+- duplicate removal using business keys
+- filtering malformed records
+
+The loader:
+
+- inserts cleaned data into SQL database
+- handles repeated IDs (keeps earliest event)
+- normalizes match events
+
+---
+
+## Features Implemented
+
+- Efficient one-pass data processing
+- SQL-based storage for fast querying
+- REST API with filtering
+- Match duration calculation from start/finish events
+- Best player computation using win ratios
+- Frontend visualization of match counts
+
+---
+
+## Bonus Features
+
+- SQL database integration
+- REST API implementation
+- Data cleaning pipeline
+- Interactive chart visualization
+
+---
+
+## Notes
+
+- Database is SQLite (local file)
+- Data must be loaded before running API
+- Dates are handled in UTC
+
+---
+
+## Author
+
+Ognjen Obradović e-mail: ognjenobradovickg@gmail.com

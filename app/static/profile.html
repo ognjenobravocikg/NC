@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <body
+    style="
+      background: #0f1117;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 100px;
+    "
+  >
+    <div style="position: absolute; top: 20px; left: 20px">
+      <a href="/">Home</a>
+    </div>
+
+    <h1>User Profile</h1>
+
+    <input id="userId" placeholder="Enter user ID" />
+    <button onclick="loadUser()">Load</button>
+
+    <pre id="output"></pre>
+
+    <script>
+      async function loadUser() {
+        const userId = document.getElementById("userId").value;
+
+        const res = await fetch(`http://localhost:8000/user-stats/${userId}`);
+        const data = await res.json();
+
+        document.getElementById("output").textContent = JSON.stringify(
+          data,
+          null,
+          2,
+        );
+      }
+    </script>
+  </body>
+</html>

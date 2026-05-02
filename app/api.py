@@ -32,6 +32,14 @@ def user_stats(
 ):
     return get_user_stats(countries=countries, oss=oss)
 
+# ---------------------------------
+# LANDING PAGE
+# ---------------------------------
+
+@app.get("/", include_in_schema=False)
+def home():
+    return FileResponse("app/static/index.html")
+
 
 # ---------------------------------
 # CHART
