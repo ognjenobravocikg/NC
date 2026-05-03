@@ -112,7 +112,9 @@ within the optional date range.
 win ratio on this map across all matches from the beginning of the dataset up to and
 including that date.
 
-Important note: if the user has the best win ratio on a map, but doesn't appear in the dataset and/or registered before the data you provided, he will BE INCLUDE but without his username instead only his user_id will appear.
+**`best_player_username`** doesn't have to be a username at all -  if the player with the best win ratio on that map 
+doesn't appear in the dataset and/or registered before the data you provided, 
+he will BE INCLUDED but without his username - instead only his user_id will appear.
 
     """,
     response_model=List[MapStatEntry],
@@ -194,7 +196,11 @@ def matches_by_date(
 
 @app.get(
         "/chart",
-        tags = ["Bonus"])
+        tags = ["Bonus"], 
+        description = """ Endpoint which is later used to display a chart with some interesting stats. 
+        The chart is generated separately and stored as a static HTML file,
+          which this endpoint serves directly. 
+    """)
 def get_chart():
     file_path = os.path.join("app", "static", "chart.html")
     return FileResponse(file_path)

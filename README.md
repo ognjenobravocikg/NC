@@ -64,7 +64,7 @@ NC/
 
 ### OPTION A Run with Docker (I highly recommend)
 
-Make sure Docker is installed and running. Build and start the application via:
+Make sure Docker is installed and running and you are located in the project directory. Build and start the application via:
 
 ```bash
 docker-compose up --build
@@ -153,6 +153,8 @@ Both parameters are validated server-side — malformed dates return a `422` err
 | `best_player_username` | Player with the highest cumulative win ratio on this map up to and including this date |
 
 > **Note on `best_player_username`:** This is computed cumulatively — it reflects the player with the best win ratio across all their matches on this map from the beginning of the dataset up to the given date, not just on that single day. Date filtering is applied only to the output rows; the cumulative win ratio always incorporates full historical data.
+
+> **Another note on `best_player_username`:** The best_player_username can also be a guest or a player which registered before the data recording began, so I made a design decision while cleaning the data to keep those matches in the final SQLite DB. In these cases "Unknow user with ID ..." will be given as a result.
 
 ---
 
@@ -246,16 +248,16 @@ Sessions are reconstructed purely from ping timestamps. Consecutive pings with a
 
 Sessions are reconstructed purely from ping timestamps. Two consecutive pings with a gap greater than 120 seconds are treated as belonging to different sessions. Session duration is `last_ping - first_ping` within each group. This approach is fully equivalent to using the `state` column but requires no dependency on it.
 
-### Interactive chart (`/chart`)
+### Interactive chart
 
-A multi-line Chart.js chart showing match counts per day for each map. Selecting a date — either via the sidebar buttons or by clicking directly on a chart point — updates two panels simultaneously:
+This interactive chart is designed as a way to help Data Analyst down the road track the popularity of the game and or certain maps so he can make informed and precise descisions to game designers and descision makers. A Chart.js chart showing match counts per day for each map. Selecting a date — either via the sidebar buttons or by clicking directly on a chart point — updates two panels simultaneously:
 
 - **Left panel** — per-map match count and average playtime for that day
 - **Right panel** — full match log for that day showing both player usernames, map (color-coded to match the chart line), UTC datetime, and match duration
 
 ### Player profile search (`/profile`)
 
-A search page where you can look up any player by username. Displays a profile card, four stat summary cards, a per-map win rate breakdown with progress bars and a W/D/L record bar, and a full match history table with opponent, result badge, and duration.
+Since we already did one feature for the employee-side I find that designing a player profile search is a good idea, since it shows what the data parsed, cleaned and analysed can be used for from a player perspective. A search page where you can look up any player by username. Displays a profile card, four stat summary cards, a per-map win rate breakdown with progress bars and a W/D/L record bar, and a full match history table with opponent, result badge, and duration. This feature can be implemented in two ways, "Profile" and "Search other Player" tabs in the video-game, it can be paired with a sent friend request for example in the second use case scenario.
 
 ### OpenAPI documentation
 
