@@ -201,7 +201,7 @@ def parse_events(filepath):
                 invalid_rows += 1
                 continue
 
-            key = (row["event_type"], row["id"])
+            key = row["id"]
 
             if key not in seen:
                 seen[key] = row

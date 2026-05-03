@@ -159,6 +159,29 @@ Returns full profile and match history for a single player. Returns `404` if the
 
 ---
 
+### `GET /matches/{date}`
+
+Returns every reconstructed match that finished on the given date, across all maps.
+
+**Path parameter:**
+
+| Parameter | Format       | Description                   |
+| --------- | ------------ | ----------------------------- |
+| `date`    | `YYYY-MM-DD` | The date to fetch matches for |
+
+**Response fields:**
+
+| Field              | Description                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| `datetime_utc`     | Full UTC timestamp of when the match ended (YYYY-MM-DD HH:MM:SS)                     |
+| `map`              | Map name the match was played on                                                     |
+| `player`           | Username of the first player                                                         |
+| `opponent`         | Username of the second player                                                        |
+| `outcome`          | Match outcome from the first player's perspective: 1.0 = win, 0.0 = loss, 0.5 = draw |
+| `duration_seconds` | Match duration in seconds                                                            |
+
+---
+
 ### `GET /health`
 
 Returns `{ "status": "ok" }` if the database is reachable, or `503` if not. Useful for deployment health checks.
@@ -201,21 +224,26 @@ Sessions are reconstructed purely from ping timestamps. Consecutive pings with a
 
 ---
 
-## Frontend (Bonus)
+## Bonus Features
 
-The frontend is served as static HTML from FastAPI and requires no separate build step.
+### Session detection without `state` column
 
-### `/` — Landing page
+Sessions are reconstructed purely from ping timestamps. Two consecutive pings with a gap greater than 120 seconds are treated as belonging to different sessions. Session duration is `last_ping - first_ping` within each group. This approach is fully equivalent to using the `state` column but requires no dependency on it.
 
-Navigation hub linking to the chart and player profile pages.
+### Interactive chart (`/chart`)
 
-### `/chart` — Match Count Chart
+A multi-line Chart.js chart showing match counts per day for each map. Selecting a date — either via the sidebar buttons or by clicking directly on a chart point — updates two panels simultaneously:
 
-Fetches live data from `/map-stats` for all maps and renders a multi-line Chart.js chart showing match counts per day across the full dataset range. A sidebar panel lets you click any date to see a per-map breakdown table for that day, including average match duration. Clicking directly on a chart point also triggers the panel.
+- **Left panel** — per-map match count and average playtime for that day
+- **Right panel** — full match log for that day showing both player usernames, map (color-coded to match the chart line), UTC datetime, and match duration
 
-### `/profile` — Player Profile Search
+### Player profile search (`/profile`)
 
-Search for any player by username. Displays a profile card with country and registration date, four stat summary cards (total matches, win ratio, best map, best map win ratio), and a full paginated match history table with opponent, result badge (Win / Loss / Draw), and match duration.
+A search page where you can look up any player by username. Displays a profile card, four stat summary cards, a per-map win rate breakdown with progress bars and a W/D/L record bar, and a full match history table with opponent, result badge, and duration.
+
+### OpenAPI documentation
+
+All endpoints include `response_model`, `description`, `summary`, and `tags` so the auto-generated docs at `/docs` are fully self-documenting. Error responses (`404`, `422`, `503`) are documented per route.
 
 ---
 

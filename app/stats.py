@@ -248,15 +248,16 @@ def get_player_stats(username):
                     event.timestamp
                 ).strftime("%Y-%m-%d")
 
-                map_name = maps.get(event.map_id, f"Unknown map {event.map_id}")
+                map_name_resolved = maps.get(event.map_id, f"Unknown map {event.map_id}")
 
                 match_history.append({
                     "date":             date_str,
-                    "map":              map_name,
+                    "map":              map_name_resolved,
                     "opponent":         opponent_username,
                     "outcome":          user_outcome,
                     "duration_seconds": duration,
                 })
+
 
                 map_outcomes[event.map_id].append(user_outcome)
 
@@ -291,6 +292,87 @@ def get_player_stats(username):
             "best_map_ratio":  round(best_map_ratio, 3),
             "match_history":   match_history,
         }
+
+    finally:
+        db.close()
+
+def get_matches_by_date(date_str, map_name=None):
+
+    db = SessionLocal()
+
+    try:
+        events = db.query(MatchEvent).order_by(
+            MatchEvent.timestamp
+        ).all()
+
+        maps = {
+            m.map_id: m.map_name
+            for m in db.query(Map).all()
+        }
+
+        starts = defaultdict(list)
+        processed_matches = set()
+        results = []
+
+        for event in events:
+
+            players = tuple(sorted([event.user_id, event.opponent_id]))
+            key = (players, event.map_id)
+
+            if event.event_type == "match_start":
+                starts[key].append(event.timestamp)
+
+            elif event.event_type == "match_finish":
+
+                match_instance_key = (players, event.map_id, event.timestamp)
+
+                if match_instance_key in processed_matches:
+                    continue
+
+                if key not in starts or not starts[key]:
+                    continue
+
+                start_time = starts[key].pop(0)
+                duration = event.timestamp - start_time
+                processed_matches.add(match_instance_key)
+
+                finished_date = datetime.utcfromtimestamp(
+                    event.timestamp
+                ).strftime("%Y-%m-%d")
+
+                if finished_date != date_str:
+                    continue
+
+                resolved_map_name = maps.get(
+                    event.map_id,
+                    f"Unknown map {event.map_id}"
+                )
+
+                if map_name and resolved_map_name != map_name:
+                    continue
+
+                user = db.query(User).filter(
+                    User.user_id == event.user_id
+                ).first()
+
+                opponent = db.query(User).filter(
+                    User.user_id == event.opponent_id
+                ).first()
+
+                results.append({
+                    "timestamp": event.timestamp,
+                    "datetime_utc": datetime.utcfromtimestamp(
+                        event.timestamp
+                    ).strftime("%Y-%m-%d %H:%M:%S"),
+                    "map": resolved_map_name,
+                    "player": user.username if user else f"Unknown {event.user_id}",
+                    "opponent": opponent.username if opponent else f"Unknown {event.opponent_id}",
+                    "outcome": event.outcome,
+                    "duration_seconds": duration,
+                })
+
+        results.sort(key=lambda x: x["timestamp"])
+        return results
 
     finally:
         db.close()

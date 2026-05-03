@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from typing import List, Optional
-from app.stats import get_user_stats, get_map_stats, get_player_stats
+from app.stats import get_matches_by_date, get_user_stats, get_map_stats, get_player_stats
 from app.database import SessionLocal
-from datetime import date
+from datetime import date, datetime
 import os
 
 class UserStatEntry(BaseModel):
@@ -35,6 +35,14 @@ class MatchHistoryEntry(BaseModel):
     outcome: float 
     duration_seconds: int 
 
+class MatchByDateEntry(BaseModel):
+    timestamp: int
+    datetime_utc: str
+    map: str
+    player: str
+    opponent: str
+    outcome: Optional[float]
+    duration_seconds: int
 
 class PlayerStatEntry(BaseModel):
     username: str 
@@ -153,6 +161,36 @@ def player_stats(username: str):
         raise HTTPException(status_code=404, detail=f"Player '{username}' not found")
     return data
 
+from app.stats import get_user_stats, get_map_stats, get_player_stats, get_matches_by_date
+
+@app.get(
+    "/matches/{date}",
+    tags=["Bonus"],
+    description="Returns all matches played on a specific date (UTC, format YYYY-MM-DD).",
+    response_model=list[MatchByDateEntry],
+    responses={
+        422: {"description": "Invalid date format"},
+    }
+)
+def matches_by_date(
+    date: str,
+    map_name: Optional[str] = None
+):
+    
+    # basic validation (important for 422 behavior)
+    try:
+        from datetime import datetime
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid date format. Use YYYY-MM-DD"
+        )
+
+
+    data = get_matches_by_date(date, map_name=map_name)
+
+    return data
 
 @app.get(
         "/chart",

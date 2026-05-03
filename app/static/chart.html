@@ -34,12 +34,11 @@
         margin-bottom: 32px;
       }
 
-      /* --- MAIN LAYOUT --- */
       .main-layout {
         display: flex;
         gap: 24px;
         width: 100%;
-        max-width: 1300px;
+        max-width: 1600px;
         align-items: flex-start;
       }
 
@@ -48,6 +47,7 @@
         border-radius: 16px;
         padding: 32px;
         flex: 1;
+        min-width: 0;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       }
 
@@ -55,30 +55,30 @@
         width: 100% !important;
       }
 
-      /* --- DETAIL PANEL --- */
-      .detail-panel {
+      .panel {
         background: #1a1d27;
         border-radius: 16px;
         padding: 24px;
-        width: 280px;
-        min-width: 280px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        min-height: 300px;
+        flex-shrink: 0;
       }
 
-      .detail-panel h2 {
+      .panel h2 {
         font-size: 1rem;
         color: #ffffff;
         margin-bottom: 4px;
       }
-
-      .detail-panel .hint {
+      .panel .hint {
         font-size: 0.78rem;
         color: #555;
         margin-bottom: 20px;
       }
 
-      /* Date selector list */
+      .breakdown-panel {
+        width: 260px;
+        height: 700px;
+      }
+
       .date-list {
         display: flex;
         flex-direction: column;
@@ -112,7 +112,6 @@
         font-weight: 600;
       }
 
-      /* Breakdown table */
       .breakdown-title {
         font-size: 0.8rem;
         color: #888;
@@ -149,16 +148,91 @@
 
       .dot {
         display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
+        width: 6px;
+        height: 6px;
+        border-radius: 40%;
+        margin-right: 4px;
       }
 
       .no-data {
         color: #444;
         font-size: 0.85rem;
         margin-top: 12px;
+      }
+
+      .matches-panel {
+        width: 360px;
+        display: flex;
+        flex-direction: column;
+        max-height: 700px;
+      }
+
+      .matches-panel .panel-header {
+        margin-bottom: 16px;
+        flex-shrink: 0;
+      }
+
+      .matches-panel .panel-header h2 {
+        margin-bottom: 4px;
+      }
+
+      .matches-scroll {
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      /* Match cards */
+      .match-card {
+        background: #23263a;
+        border: 1px solid #2e3150;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        font-size: 0.83rem;
+        line-height: 1.6;
+      }
+
+      .match-card:last-child {
+        margin-bottom: 0;
+      }
+
+      .match-time {
+        font-size: 0.73rem;
+        color: #555;
+        font-family: monospace;
+        margin-bottom: 4px;
+      }
+
+      .match-map {
+        font-weight: 600;
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+      }
+
+      .match-players {
+        color: #bbb;
+        margin-bottom: 6px;
+      }
+
+      .match-players .player-name {
+        color: #fff;
+        font-weight: 500;
+      }
+      .match-players .vs {
+        color: #333;
+        margin: 0 6px;
+      }
+
+      .match-duration {
+        font-size: 0.75rem;
+        color: #555;
+      }
+
+      .matches-placeholder {
+        color: #333;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 32px 0;
       }
 
       .error {
@@ -180,18 +254,12 @@
     </div>
 
     <h1>Map Match Count</h1>
-    <p class="subtitle">Dataset-driven timeline — click a date to inspect</p>
 
     <div class="main-layout">
-      <!-- CHART -->
-      <div class="chart-wrapper">
-        <canvas id="matchChart"></canvas>
-      </div>
-
-      <!-- DETAIL PANEL -->
-      <div class="detail-panel">
+      <!-- LEFT: BREAKDOWN PANEL -->
+      <div class="panel breakdown-panel">
         <h2>Daily Breakdown</h2>
-        <p class="hint">Select a date to see match counts per map</p>
+        <p class="hint">Select a date to inspect</p>
 
         <div class="date-list" id="dateList"></div>
 
@@ -213,6 +281,36 @@
           No matches on this date.
         </p>
       </div>
+
+      <div class="chart-wrapper">
+        <canvas id="matchChart"></canvas>
+      </div>
+
+      <div class="panel matches-panel">
+        <div class="panel-header">
+          <h2>Match Log</h2>
+          <p class="hint" id="matchesHint">Select a date to see matches</p>
+        </div>
+        <div style="margin-bottom: 20px">
+          <label style="color: #888; font-size: 0.85rem">Filter by map:</label>
+          <select
+            id="mapFilter"
+            style="
+              margin-left: 10px;
+              padding: 6px 10px;
+              background: #1a1d27;
+              color: #fff;
+              border: 1px solid #2e3150;
+              border-radius: 6px;
+            "
+          >
+            <option value="">All maps</option>
+          </select>
+        </div>
+        <div class="matches-scroll" id="matchesScroll">
+          <p class="matches-placeholder">No date selected</p>
+        </div>
+      </div>
     </div>
 
     <p id="status" class="loading">Loading data...</p>
@@ -229,14 +327,20 @@
         "#80cbc4",
       ];
 
-      // Stores all fetched data indexed by map name then date
-      // allData[mapName][date] = { match_cnt, avg_playtime, best_player_username }
+      const MAP_COLOR = {};
+      MAP_NAMES.forEach((n, i) => {
+        MAP_COLOR[n] = COLORS[i % COLORS.length];
+      });
+
       let allData = {};
       let chartDates = [];
 
-      // -------------------------------------------
-      // FETCH
-      // -------------------------------------------
+      function formatDuration(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+      }
+
       async function fetchAvailableDates() {
         const res = await fetch(`${API_BASE}/map-stats/Forest`);
         if (!res.ok) throw new Error("Failed to fetch dates");
@@ -244,11 +348,80 @@
         return data.map((r) => r.date).sort();
       }
 
-      // -------------------------------------------
-      // RENDER DETAIL PANEL FOR A DATE
-      // -------------------------------------------
+      function initMapFilter() {
+        const select = document.getElementById("mapFilter");
+
+        MAP_NAMES.forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+
+        select.addEventListener("change", () => {
+          const activeBtn = document.querySelector(".date-btn.active");
+          if (activeBtn) {
+            showBreakdown(activeBtn.dataset.date);
+          }
+        });
+      }
+
+      async function fetchMatchesForDate(dateStr) {
+        const mapFilter = document.getElementById("mapFilter").value;
+
+        let url = `${API_BASE}/matches/${dateStr}`;
+
+        if (mapFilter) {
+          url += `?map_name=${encodeURIComponent(mapFilter)}`;
+        }
+
+        const res = await fetch(url);
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        return await res.json();
+      }
+
+      async function renderMatchLog(dateStr) {
+        const scroll = document.getElementById("matchesScroll");
+        const hint = document.getElementById("matchesHint");
+
+        hint.textContent = dateStr;
+        scroll.innerHTML = '<p class="matches-placeholder">Loading...</p>';
+
+        try {
+          const matches = await fetchMatchesForDate(dateStr);
+
+          if (!matches.length) {
+            scroll.innerHTML =
+              '<p class="matches-placeholder">No matches found.</p>';
+            return;
+          }
+
+          scroll.innerHTML = matches
+            .map((m) => {
+              const color = MAP_COLOR[m.map] ?? "#aaa";
+              return `
+              <div class="match-card">
+                <div class="match-time">🕐 ${m.datetime_utc} UTC</div>
+                <div class="match-map" style="color:${color}">■ ${m.map}</div>
+                <div class="match-players">
+                  <span class="player-name">${m.player}</span>
+                  <span class="vs">vs</span>
+                  <span class="player-name">${m.opponent}</span>
+                </div>
+                <div class="match-duration">⏱ ${formatDuration(m.duration_seconds)}</div>
+              </div>
+            `;
+            })
+            .join("");
+        } catch (err) {
+          scroll.innerHTML = `<p class="matches-placeholder" style="color:#ff6b6b">Failed to load matches.</p>`;
+          console.error(err);
+        }
+      }
+
       function showBreakdown(dateStr) {
-        // Highlight active button
         document.querySelectorAll(".date-btn").forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.date === dateStr);
         });
@@ -259,7 +432,6 @@
         const title = document.getElementById("breakdownTitle");
 
         tbody.innerHTML = "";
-
         let totalMatches = 0;
 
         MAP_NAMES.forEach((name, i) => {
@@ -276,7 +448,7 @@
           tbody.appendChild(tr);
         });
 
-        title.textContent = `${dateStr}  ·  ${totalMatches} total match${totalMatches !== 1 ? "es" : ""}`;
+        title.textContent = `${dateStr} · ${totalMatches} total match${totalMatches !== 1 ? "es" : ""}`;
 
         if (totalMatches === 0) {
           section.style.display = "none";
@@ -285,11 +457,10 @@
           section.style.display = "block";
           noData.style.display = "none";
         }
+
+        renderMatchLog(dateStr);
       }
 
-      // -------------------------------------------
-      // BUILD DATE BUTTON LIST
-      // -------------------------------------------
       function buildDateList(dates) {
         const container = document.getElementById("dateList");
         container.innerHTML = "";
@@ -304,9 +475,6 @@
         });
       }
 
-      // -------------------------------------------
-      // BUILD CHART
-      // -------------------------------------------
       async function buildChart() {
         const status = document.getElementById("status");
 
@@ -320,7 +488,6 @@
           const dateFrom = chartDates[0];
           const dateTo = chartDates[chartDates.length - 1];
 
-          // Fetch all maps in parallel
           const fetched = await Promise.all(
             MAP_NAMES.map((name) =>
               fetch(
@@ -334,7 +501,6 @@
             ),
           );
 
-          // Index into allData[mapName][date]
           fetched.forEach(({ name, rows }) => {
             allData[name] = {};
             rows.forEach((r) => {
@@ -342,7 +508,6 @@
             });
           });
 
-          // Build chart datasets
           const datasets = fetched.map(({ name }, i) => ({
             label: name,
             data: chartDates.map((d) => allData[name][d]?.match_cnt ?? 0),
@@ -358,17 +523,16 @@
 
           const ctx = document.getElementById("matchChart").getContext("2d");
 
-          const chart = new Chart(ctx, {
+          new Chart(ctx, {
             type: "line",
             data: { labels: chartDates, datasets },
             options: {
               responsive: true,
               interaction: { mode: "index", intersect: false },
-              // Clicking a point on the chart also triggers the panel
+              // Clicking a point on the chart also triggers both panels
               onClick(_, elements) {
-                if (elements.length) {
+                if (elements.length)
                   showBreakdown(chartDates[elements[0].index]);
-                }
               },
               plugins: {
                 legend: { labels: { color: "#cccccc" } },
@@ -384,10 +548,8 @@
             },
           });
 
-          // Build sidebar date buttons
           buildDateList(chartDates);
 
-          // Auto-select the most recent date
           if (chartDates.length)
             showBreakdown(chartDates[chartDates.length - 1]);
         } catch (err) {
@@ -397,6 +559,7 @@
         }
       }
 
+      initMapFilter();
       buildChart();
     </script>
   </body>
