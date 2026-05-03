@@ -36,7 +36,7 @@ cd NC
 The project file system should like the following:
 
 ```
-project/
+NC/
 │
 ├── app/
 │   ├── api.py
@@ -55,16 +55,32 @@ project/
 │   └── maps.jsonl
 │
 ├── main.py
+├── docker-compose.yml
+├── Dockerfile
 └── requirements.txt
 ```
 
-### 2. Install dependencies
+## 2. Run the project
+
+### OPTION A Run with Docker (I highly recommend)
+
+Make sure Docker is installed and running. Build and start the application via:
+
+```bash
+docker-compose up --build
+```
+
+Access the application at http://localhost:8000/.
+
+---
+
+### OPTION B Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Load data into the database
+### 3. Load data into the database (skip if you ran with Docker)
 
 ```bash
 python main.py
@@ -74,13 +90,13 @@ This runs the full parsing and loading pipeline. It will parse `events.jsonl` an
 
 You can inspect the database using [DB Browser for SQLite](https://sqlitebrowser.org/).
 
-### 4. Start the API server
+### 4. Start the API server (skip if you ran with Docker)
 
 ```bash
 uvicorn app.api:app --reload
 ```
 
-The API will be available at `http://127.0.0.1:8000`. Opening that in your browser will take you to the landing page.
+The API will be available at http://localhost:8000/. Opening that in your browser will take you to the landing page.
 
 ---
 

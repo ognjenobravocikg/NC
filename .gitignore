@@ -1,12 +1,9 @@
-# Python
 __pycache__/
 *.py[cod]
 
-# Database
 *.db
 *.sqlite3
 
-# IDE
 .vscode/
 .idea/
 
