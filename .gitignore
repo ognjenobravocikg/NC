@@ -6,6 +6,3 @@ __pycache__/
 
 .vscode/
 .idea/
-
-data/events.jsonl
-data/maps.jsonl
