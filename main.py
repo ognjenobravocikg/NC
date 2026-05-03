@@ -4,7 +4,6 @@ from app.parser import parse_events
 from app.loader import load_all
 from app.stats import get_user_stats, get_map_stats
 
-
 def main():
 
     Base.metadata.create_all(bind=engine)
