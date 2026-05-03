@@ -2,7 +2,7 @@
 
 **Author:** Ognjen Obradović — ognjenobradovickg@gmail.com
 
-Challenge provided by NS. The dataset and full challenge description can be found at:
+Challenge provided by Nordeus. The dataset and full challenge description can be found at:
 [nordeus.com/nordeus-challenge/data-engineering](https://nordeus.com/nordeus-challenge/data-engineering/)
 
 ## A Brief Overview
